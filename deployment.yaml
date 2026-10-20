@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-demo
+  labels:
+    app: argocd-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: argocd-demo
+  template:
+    metadata:
+      labels:
+        app: argocd-demo
+    spec:
+      containers:
+        - name: web
+          # Replace with your own registry/username
+          image: YOUR_DOCKERHUB_USERNAME/argocd-demo:v1.0.0
+          ports:
+            - containerPort: 80
