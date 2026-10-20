@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: web
-          # Replace with your own registry/username
-          image: YOUR_DOCKERHUB_USERNAME/argocd-demo:v1.0.0
+          # Updated by .github/workflows/ci.yml after each image push
+          image: ghcr.io/aaqibshaikh199/argocd:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
