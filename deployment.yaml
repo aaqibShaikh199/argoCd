@@ -17,7 +17,7 @@ spec:
       containers:
         - name: web
           # Updated by .github/workflows/ci.yml after each image push
-          image: 404433473481.dkr.ecr.ap-south-1.amazonaws.com/aaqib-argocd-learning:882673bbced1d5f42c5e412e7b65c575f363e395
+          image: 404433473481.dkr.ecr.ap-south-1.amazonaws.com/aaqib-argocd-learning:e5544e67a4ae6b13db4880c39092057e99bcbd4e
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
