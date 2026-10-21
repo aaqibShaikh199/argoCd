@@ -13,11 +13,16 @@ on:
 
 permissions:
   contents: write
-  packages: write
+  id-token: write
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+  EKS_CLUSTER: aaqib-argo-cd-learning
+  ECR_REPOSITORY: 404433473481.dkr.ecr.ap-south-1.amazonaws.com/aaqib-argocd-learning
 
 jobs:
   build:
@@ -28,18 +33,14 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
 
-      - name: Image name
-        id: image
-        run: |
-          repo="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
-          echo "name=ghcr.io/${repo}" >> "$GITHUB_OUTPUT"
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -50,12 +51,12 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ steps.image.outputs.name }}:${{ github.sha }}
-            ${{ steps.image.outputs.name }}:latest
+            ${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ env.ECR_REPOSITORY }}:latest
 
       - name: Update deployment image
         run: |
-          sed -i -E "s|^([[:space:]]*)image:.*|\1image: ${{ steps.image.outputs.name }}:${{ github.sha }}|" deployment.yaml
+          sed -i -E "s|^([[:space:]]*)image:.*|\1image: ${ECR_REPOSITORY}:${GITHUB_SHA}|" deployment.yaml
 
       - name: Commit image tag
         run: |
@@ -64,7 +65,13 @@ jobs:
           git add deployment.yaml
           if git diff --staged --quiet; then
             echo "Image tag already set"
-            exit 0
+          else
+            git commit -m "Update image to ${GITHUB_SHA}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
-          git commit -m "Update image to ${GITHUB_SHA}"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Deploy to EKS
+        run: |
+          aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
+          kubectl apply -f deployment.yaml -f service.yaml
+          kubectl rollout status deployment/argocd-demo --timeout=180s
